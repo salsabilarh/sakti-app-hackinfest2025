@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Users, UserCheck, Upload, Plus, Download, GitPullRequest, Key } from 'lucide-react';
+import { Users, UserCheck, GitPullRequest, Key, Download, Layers } from 'lucide-react';
 import { useAuth, ROLES } from '@/contexts/AuthContext.jsx';
 import AdminStats from '@/components/admin/AdminStats.jsx';
 import UsersManagement from '@/components/admin/UsersManagement.jsx';
 import WaitingUsers from '@/components/admin/WaitingUsers.jsx';
-import DownloadLogs from '@/components/admin/DownloadLogs.jsx';
 import UnitChangeRequests from '@/components/admin/UnitChangeRequests.jsx';
 import PasswordResetRequests from '@/components/admin/PasswordResetRequests.jsx';
+import DownloadLogs from '@/components/admin/DownloadLogs.jsx';
 
 const AdminPanel = () => {
   const { user } = useAuth();
@@ -25,74 +25,68 @@ const AdminPanel = () => {
   if (user?.role !== ROLES.ADMIN) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Akses Ditolak</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Akses Ditolak</h2>
         <p className="text-gray-600">Anda tidak memiliki akses ke halaman admin.</p>
       </div>
     );
   }
 
-  const activeTabData = TABS.find(tab => tab.id === activeTab);
-  const ActiveComponent = activeTabData?.component;
-
-  const handleTabClick = (tabId) => {
-    setActiveTab(tabId);
-  };
+  const ActiveComponent = TABS.find(t => t.id === activeTab)?.component;
 
   return (
     <>
       <Helmet>
-        <title>Admin Panel - SAKTI Platform</title>
+        <title>Admin Panel | SAKTI Platform</title>
         <meta name="description" content="Administrative dashboard for managing users, services, and download logs" />
       </Helmet>
 
-      <div className="space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Panel</h1>
-          <p className="text-gray-600">
-            Kelola pengguna, layanan, dan monitor aktivitas download
-          </p>
-        </motion.div>
+      {/* HERO */}
+      <motion.div
+        className="relative overflow-hidden rounded-3xl p-8 sm:p-10 text-white shadow-lg mb-6"
+        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-[#000476] to-indigo-800" />
+        <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_20%_-10%,rgba(255,255,255,0.15),transparent)]" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-2">
+              <Layers className="w-7 h-7 text-white" /> Admin Panel
+            </h1>
+            <p className="text-blue-100 text-sm sm:text-base">
+              Kelola pengguna, persetujuan, dan aktivitas
+            </p>
+          </div>
+        </div>
+      </motion.div>
 
-        <AdminStats 
-          usersCount={0} // Update jika tersedia data asli
-          pendingUsersCount={0}
-          activeUsersCount={0}
-          logsCount={0} 
-        />
+      {/* SEGMENTED TABS */}
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg overflow-x-auto">
-            {TABS.map((tab) => (
+      {/* STATS + ACTIVE TAB */}
+      <div className="space-y-6 mt-6">
+        <AdminStats />
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+        <div className="bg-gray-100 p-1 rounded-2xl overflow-x-auto flex items-center gap-1">
+          {TABS.map(tab => {
+            const ActiveIcon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
               <button
                 key={tab.id}
-                onClick={() => handleTabClick(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors flex-shrink-0 ${
-                  activeTab === tab.id
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all flex-shrink-0 ${
+                  isActive
                     ? 'bg-white text-[#000476] shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white'
                 }`}
               >
-                <tab.icon className="w-4 h-4" />
+                <ActiveIcon className="w-4 h-4" />
                 <span>{tab.label}</span>
               </button>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
+            );
+          })}
+        </div>
+      </motion.div>
+        <motion.div key={activeTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
           {ActiveComponent && <ActiveComponent />}
         </motion.div>
       </div>

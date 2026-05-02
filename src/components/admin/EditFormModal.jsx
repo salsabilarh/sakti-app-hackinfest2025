@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Check, Search } from 'lucide-react';
+import { Save, Check, Search, XCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,39 +33,28 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
-function EditFormModal({ open, onOpenChange, file, services, authToken, onUpdateSuccess }) {
+function EditFormModal({ open, onOpenChange, file, services = [], authToken, onUpdateSuccess }) {
+  const { toast } = useToast();
+
   const [uploadFile, setUploadFile] = useState(null);
   const [fileType, setFileType] = useState('');
-  const [serviceIds, setServiceIds] = useState([]); // support multiple
-  const [name, setName] = useState('');
+  const [serviceIds, setServiceIds] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [openPopover, setOpenPopover] = useState(false);
-  const { toast } = useToast();
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (file) {
       setFileType(file.file_type || '');
-      // Perbaikan: Pastikan semua service yang terkait dengan file ditampilkan
-      const fileServiceIds = file.services?.map(s => s.id.toString()) || [];
-      setServiceIds(fileServiceIds);
-      setName(file.name || '');
+      setServiceIds((file.services || []).map(s => s.id.toString()));
       setUploadFile(null);
-      
-      // Debug log untuk memastikan data service tersedia
-      console.log('File services:', file.services);
-      console.log('Available services:', services);
-      console.log('Selected service IDs:', fileServiceIds);
     }
-  }, [file, services]);
+  }, [file]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-    if ( !fileType || serviceIds.length === 0) {
-      toast({
-        title: 'Form tidak lengkap',
-        description: 'Mohon lengkapi semua field yang diperlukan',
-        variant: 'destructive',
-      });
+    if (!fileType) {
+      toast({ title: 'Tipe File wajib diisi', variant: 'destructive' });
       return;
     }
 
@@ -76,24 +65,21 @@ function EditFormModal({ open, onOpenChange, file, services, authToken, onUpdate
 
     setLoading(true);
     try {
-      const response = await fetch(`https://api-sakti-production.up.railway.app/api/marketing-kits/${file.id}`, {
+      const res = await fetch(`http://localhost:3000/api/marketing-kits/${file.id}`, {
         method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: { Authorization: `Bearer ${authToken}` },
         body: formData,
       });
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Gagal memperbarui file');
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal memperbarui file.');
 
       toast({
         title: 'Berhasil!',
-        description: `File berhasil diperbarui.`,
+        description: `File ${file.name} berhasil diperbarui.`,
       });
 
       onUpdateSuccess?.();
-      onOpenChange(false);
     } catch (error) {
       toast({
         title: 'Gagal memperbarui',
@@ -105,172 +91,149 @@ function EditFormModal({ open, onOpenChange, file, services, authToken, onUpdate
     }
   };
 
-  // Fungsi untuk mendapatkan service berdasarkan ID
-  const getServiceById = (id) => {
-    const fromGlobal = services.find(s => s.id.toString() === id.toString());
-    if (fromGlobal) return fromGlobal;
-
-    // Fallback ke data `file.services` kalau tidak ditemukan di daftar global
-    return file?.services?.find(s => s.id.toString() === id.toString());
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-[600px] rounded-2xl shadow-xl">
         <DialogHeader>
-          <DialogTitle>Edit File Marketing</DialogTitle>
-          <DialogDescription>Perbarui informasi file marketing kit ini.</DialogDescription>
+          <DialogTitle className="flex items-center gap-2 text-[#000476]">
+            <Save className="w-5 h-5" />
+            Edit File Marketing Kit
+          </DialogTitle>
+          <DialogDescription>
+            Ubah informasi file marketing kit atau unggah versi baru.
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleUpdate} className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Multi-select Services */}
-            <div>
-              <Label>Layanan Terkait</Label>
-              <Popover open={openPopover} onOpenChange={setOpenPopover}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full flex flex-wrap justify-start items-start min-h-[5rem] gap-2 overflow-y-auto max-h-40 text-left"
-                  >
-                    {serviceIds.length > 0 ? (
-                      serviceIds.map(id => {
-                        const service = getServiceById(id);
-                        if (!service) return null;
-                        return (
-                          <span
-                            key={service.id}
-                            className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800 mr-1"
+        <form onSubmit={handleUpdate} className="space-y-6 mt-4">
+          {/* === Layanan terkait === */}
+          <div>
+            <Label className="font-medium text-gray-700 mb-2 block">Layanan Terkait</Label>
+            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full min-h-[3rem] flex flex-wrap items-center gap-2 text-left rounded-xl border-gray-300 hover:border-[#000476] transition-all"
+                >
+                  {serviceIds.length > 0 ? (
+                    serviceIds.map((id) => {
+                      const service = services.find((s) => s.id.toString() === id.toString());
+                      if (!service) return null;
+                      return (
+                        <span
+                          key={service.id}
+                          className="inline-flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium shadow-sm"
+                        >
+                          {service.code}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setServiceIds(prev => prev.filter(sid => sid !== id.toString()));
+                            }}
+                            className="ml-1 text-blue-600 hover:text-blue-900"
                           >
-                            {service.code || service.name}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setServiceIds(prev => prev.filter(serviceId => serviceId !== service.id.toString()));
-                              }}
-                              className="ml-1 text-red-600 hover:text-red-800 font-bold"
-                              title="Hapus"
-                            >
-                              &times;
-                            </button>
-                          </span>
-                        );
-                      })
-                    ) : (
-                      <span className="text-muted-foreground">Pilih layanan...</span>
-                    )}
-                    <Search className="ml-auto h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="min-w-full max-w-sm p-0">
-                  <Command>
-                    <CommandInput placeholder="Cari layanan..." />
-                    <CommandList>
-                      <CommandEmpty>Tidak ditemukan.</CommandEmpty>
-                      <CommandGroup>
-                        {services.map(service => {
+                            <XCircle size={14} />
+                          </button>
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span className="text-gray-400 text-sm">Pilih layanan terkait...</span>
+                  )}
+                  <Search className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="min-w-full max-w-sm p-0 shadow-md rounded-xl">
+                <Command>
+                  <CommandInput
+                    placeholder="Cari layanan..."
+                    onValueChange={(value) => setSearchTerm(value.toLowerCase())}
+                    className="focus:ring-0 focus:border-none"
+                  />
+                  <CommandList className="max-h-64 overflow-y-auto">
+                    <CommandEmpty>Layanan tidak ditemukan.</CommandEmpty>
+                    <CommandGroup>
+                      {services
+                        .filter((s) => {
+                          const keyword = searchTerm.trim().toLowerCase();
+                          if (!keyword) return true;
+                          return (
+                            s.name?.toLowerCase().includes(keyword) ||
+                            s.code?.toLowerCase().includes(keyword)
+                          );
+                        })
+                        .map((service) => {
                           const isSelected = serviceIds.includes(service.id.toString());
                           return (
                             <CommandItem
                               key={service.id}
-                              value={`${service.id}-${service.name}-${service.code || ''}`}
                               onSelect={() => {
-                                setServiceIds(prev =>
+                                setServiceIds((prev) =>
                                   isSelected
-                                    ? prev.filter(id => id !== service.id.toString())
+                                    ? prev.filter((id) => id !== service.id.toString())
                                     : [...prev, service.id.toString()]
                                 );
                               }}
+                              className="cursor-pointer"
                             >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  isSelected ? "opacity-100" : "opacity-0"
-                                )}
-                              />
+                              <Check className={cn('mr-2 h-4 w-4', isSelected ? 'opacity-100' : 'opacity-0')} />
                               <div className="flex flex-col">
                                 <span className="font-medium">{service.name}</span>
-                                {service.code && (
-                                  <span className="text-xs text-gray-500">{service.code}</span>
-                                )}
+                                <span className="text-xs text-gray-500">{service.code}</span>
                               </div>
                             </CommandItem>
                           );
                         })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* File Type */}
-            <div>
-              <Label>Tipe File</Label>
-              <Select onValueChange={setFileType} value={fileType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih tipe file" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Flyer">Flyer</SelectItem>
-                  <SelectItem value="Pitch Deck">Pitch Deck</SelectItem>
-                  <SelectItem value="Brochure">Brochure</SelectItem>
-                  <SelectItem value="Technical Document">Technical Document</SelectItem>
-                  <SelectItem value="Others">Others</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
-          {/* Pilih File */}
+          {/* === Pilih Tipe File === */}
           <div>
-            <Label htmlFor="upload">Pilih File</Label>
+            <Label className="font-medium text-gray-700 mb-2 block">Tipe File</Label>
+            <Select value={fileType} onValueChange={setFileType}>
+              <SelectTrigger className="w-full rounded-xl border-gray-300 hover:border-[#000476]">
+                <SelectValue placeholder="Pilih tipe file" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Flyer">Flyer</SelectItem>
+                <SelectItem value="Pitch Deck">Pitch Deck</SelectItem>
+                <SelectItem value="Brochure">Brochure</SelectItem>
+                <SelectItem value="Technical Document">Technical Document</SelectItem>
+                <SelectItem value="Others">Others</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* === Ganti File (opsional) === */}
+          <div>
+            <Label className="font-medium text-gray-700 mb-2 block">Ganti File (Opsional)</Label>
             <Input
               type="file"
-              id="upload"
-              onChange={(e) => setUploadFile(e.target.files[0])}
               accept=".pdf,.doc,.docx,.ppt,.pptx"
+              onChange={(e) => setUploadFile(e.target.files[0])}
+              className="rounded-xl border-gray-300 hover:border-[#000476]"
             />
-            <p className="text-sm text-gray-500 mt-1">
-              Format yang didukung: PDF, DOC, DOCX, PPT, PPTX
-            </p>
-
-            {/* Menampilkan file sebelumnya jika tidak sedang mengganti file */}
-            {file?.file_path && !uploadFile && (
-              <p className="text-sm text-blue-600 mt-2">
-                File sebelumnya:{' '}
-                <a
-                  href={file.file_path}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-blue-800"
-                >
-                  {file.name}
-                </a>
-              </p>
-            )}
-
-            {/* Menampilkan nama file baru yang dipilih */}
             {uploadFile && (
-              <p className="text-sm text-green-600 mt-2">
-                File baru: {uploadFile.name}
-              </p>
+              <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
+                <FileText className="w-4 h-4 text-blue-600" />
+                <span>{uploadFile.name}</span>
+              </div>
             )}
           </div>
 
-          {/* Tombol Aksi */}
-          <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Batal
-            </Button>
-            <Button type="submit" disabled={loading} style={{ backgroundColor: '#000476' }}>
-              {loading ? 'Menyimpan...' : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Simpan Perubahan
-                </>
-              )}
+          {/* === Tombol Simpan === */}
+          <div className="flex justify-end pt-4 border-t">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-[#000476] hover:bg-[#1919b3] text-white px-6 py-2 rounded-xl"
+            >
+              {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
             </Button>
           </div>
         </form>

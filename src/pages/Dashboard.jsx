@@ -13,18 +13,17 @@ function Dashboard() {
   useEffect(() => {
     const injectBotpressScript = () => {
       return new Promise((resolve, reject) => {
-        if (window.botpress) return resolve(); // sudah ada
-        let script = document.getElementById("botpress-webchat-script");
+        if (window.botpress) return resolve();
+        let script = document.getElementById('botpress-webchat-script');
         if (script) {
           script.onload = resolve;
           script.onerror = reject;
           return;
         }
-
-        script = document.createElement("script");
-        script.src = "https://cdn.botpress.cloud/webchat/v3.1/inject.js";
+        script = document.createElement('script');
+        script.src = 'https://cdn.botpress.cloud/webchat/v3.1/inject.js';
         script.async = true;
-        script.id = "botpress-webchat-script";
+        script.id = 'botpress-webchat-script';
         script.onload = resolve;
         script.onerror = reject;
         document.body.appendChild(script);
@@ -33,40 +32,36 @@ function Dashboard() {
 
     const initBotpress = () => {
       if (!window.botpress) {
-        console.error("Botpress tidak tersedia di window");
+        console.error('Botpress tidak tersedia di window');
         return;
       }
-
       window.botpress.init({
-        botId: "ca0e2a53-b7b1-4b4d-90e2-7b93d67b28e0",
-        clientId: "48967a19-c892-47f0-8f46-e7cfd3153a98",
-        selector: "#webchat",
+        botId: 'ca0e2a53-b7b1-4b4d-90e2-7b93d67b28e0',
+        clientId: '48967a19-c892-47f0-8f46-e7cfd3153a98',
+        selector: '#webchat',
         configuration: {
-          version: "v1",
-          botName: "SAKTI Assistant",
+          version: 'v1',
+          botName: 'SAKTI Assistant',
           botAvatar:
-            "https://files.bpcontent.cloud/2025/07/27/09/20250727092708-YXL6QMAF.png",
+            'https://files.bpcontent.cloud/2025/07/27/09/20250727092708-YXL6QMAF.png',
           color: '#000476',
           variant: 'solid',
+          avatarBackground: '#ffffff',
           headerVariant: 'solid',
           themeMode: 'dark',
           fontFamily: 'inter',
           radius: 4,
           feedbackEnabled: false,
-          footer: ''
+          footer: '',
         },
       });
-
-      // Buka otomatis setelah init
-      setTimeout(() => window.botpress.open(), 500);
+      setTimeout(() => window.botpress.open(), 300);
     };
 
-    if (location.pathname === "/dashboard") {
-      injectBotpressScript().then(() => {
-        initBotpress();
-      }).catch((err) => {
-        console.error("Botpress gagal load:", err);
-      });
+    if (location.pathname === '/dashboard') {
+      injectBotpressScript()
+        .then(initBotpress)
+        .catch((err) => console.error('Botpress gagal load:', err));
     }
   }, [location.pathname]);
 
@@ -82,29 +77,25 @@ function Dashboard() {
         border-radius: 0.75rem !important;
         box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important;
       }
-
       #webchat .bpWebchat iframe {
         width: 100% !important;
         height: 100% !important;
         border: none !important;
         border-radius: 0.75rem !important;
       }
-
       #webchat .bpFab,
       #webchat .bp-header .bp-close {
         display: none !important;
       }
     `;
     document.head.appendChild(style);
+    return () => document.head.removeChild(style);
   }, []);
 
   useEffect(() => {
     const handleFocus = () => {
-      if (window.botpress) {
-        window.botpress.open();
-      }
+      if (window.botpress) window.botpress.open();
     };
-
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
@@ -116,19 +107,16 @@ function Dashboard() {
         window.botpress.open();
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [location.pathname]);
 
   useEffect(() => {
-    // Hapus botpress script jika logout
     return () => {
       const script = document.getElementById('botpress-webchat-script');
       if (script) script.remove();
-
-      // Bersihkan state global botpress
       if (window.botpress) {
+        try { window.botpress.close(); } catch {}
         delete window.botpress;
       }
     };
@@ -137,67 +125,76 @@ function Dashboard() {
   return (
     <>
       <Helmet>
-        <title>Dashboard - SAKTI Platform</title>
+        <title>Dashboard | SAKTI Platform</title>
         <meta
           name="description"
           content="Welcome to SAKTI Dashboard - Your central hub for service management and analytics"
         />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Helmet>
 
-      <div className="space-y-8">
-        <motion.div
+      <div className="space-y-6 sm:space-y-8">
+        <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="bg-gradient-to-r from-[#000476] to-indigo-800 rounded-2xl p-8 text-white relative"
+          className="relative overflow-hidden rounded-2xl p-6 sm:p-8 text-white bg-gradient-to-r from-[#000476] to-indigo-800"
         >
-          <div className="absolute top-0 left-0 -translate-x-1/4 -translate-y-1/4">
-            <div className="bg-white p-4 rounded-2xl shadow-lg">
+          <div className="absolute top-3 left-3 hidden sm:block">
+            <div className="bg-white/95 p-3 sm:p-4 rounded-2xl shadow-lg">
               <img
-                src="https://storage.googleapis.com/hostinger-horizons-assets-prod/7e0684c8-f8f8-4241-a5d6-e17a7b2d1451/bd09d92a84c3cc2570763c0b4f943ecb.png"
+                src="simbol.png"
                 alt="SAKTI Symbol Logo"
-                className="h-12 w-12"
+                className="h-8 w-8 sm:h-12 sm:w-12"
               />
             </div>
           </div>
-          <div className="grid lg:grid-cols-2 gap-8 items-center">
-            <div className="lg:pl-24">
-              <h1 className="text-3xl font-bold mb-2">Selamat Datang, {user?.full_name}</h1>
-              <p className="text-blue-100 text-lg mb-6">
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-center">
+            <div className="pl-0 sm:pl-20">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+                Selamat Datang, {user?.full_name}
+              </h1>
+              <p className="text-blue-100 text-base sm:text-lg">
                 Jelajahi layanan dan dokumentasi dengan mudah melalui platform SAKTI
               </p>
             </div>
-            <div className="hidden lg:flex justify-center">
+
+            <div className="justify-center hidden md:flex">
               <img
-                className="w-full max-w-md"
+                className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg object-contain"
                 alt="Dashboard illustration showing teamwork and exploration"
                 src="https://images.unsplash.com/photo-1531497258014-b5736f376b1b"
+                loading="lazy"
               />
             </div>
           </div>
-        </motion.div>
+        </motion.section>
 
-        <motion.div
+        <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
         >
           <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">Asisten Virtual SAKTI</CardTitle>
-              <p className="text-gray-600">Tanyakan apa saja tentang layanan dan dokumentasi kami</p>
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-lg sm:text-xl">Asisten Virtual SAKTI</CardTitle>
+              <p className="text-gray-600 text-sm sm:text-base">
+                Tanyakan apa saja tentang layanan dan dokumentasi kami
+              </p>
             </CardHeader>
+
             <CardContent>
-              <div className="relative w-full h-[500px] md:h-[600px] rounded-xl overflow-hidden border">
+              <div className="relative w-full h-[60vh] sm:h-[65vh] lg:h-[70vh] rounded-xl overflow-hidden border">
                 <div
                   ref={webchatRef}
                   id="webchat"
-                  className="absolute top-0 left-0 w-full h-full transition-all duration-500 ease-in-out"
-                ></div>
+                  className="absolute inset-0 w-full h-full transition-all duration-300 ease-in-out"
+                />
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </motion.section>
       </div>
     </>
   );

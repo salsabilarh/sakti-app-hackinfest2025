@@ -11,7 +11,7 @@ function DashboardLayout({ children }) {
 
       <div className="flex flex-col flex-1 lg:ml-64">
         <Header onToggleMobile={() => setIsMobileOpen(!isMobileOpen)} />
-        <main className="flex-1 overflow-auto bg-gray-50 p-4">
+        <main className="flex-1 overflow-auto bg-gray-50 p-5">
           {children}
         </main>
       </div>

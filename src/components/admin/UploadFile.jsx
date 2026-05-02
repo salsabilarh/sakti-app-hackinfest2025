@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Search, Check } from 'lucide-react';
+import { Upload, Search, Check, FileText, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,8 +25,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
 function UploadFile({ onUploadSuccess, onClose }) {
-  const [uploadFiles, setUploadFiles] = useState([]); // array of files
-  const [fileType, setFileType] = useState('');
+  const [uploadFiles, setUploadFiles] = useState([]);
   const [serviceIds, setServiceIds] = useState([]);
   const [open, setOpen] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -34,13 +33,12 @@ function UploadFile({ onUploadSuccess, onClose }) {
   const { toast } = useToast();
   const { authToken } = useAuth();
   const [services, setServices] = useState([]);
-  const [name, setName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const res = await fetch('https://api-sakti-production.up.railway.app/api/services?limit=9999', {
+        const res = await fetch('http://localhost:3000/api/services?limit=9999', {
           headers: { Authorization: `Bearer ${authToken}` }
         });
         const data = await res.json();
@@ -52,17 +50,12 @@ function UploadFile({ onUploadSuccess, onClose }) {
     if (authToken) fetchServices();
   }, [authToken]);
 
-
   const handleFileUpload = async (e) => {
     e.preventDefault();
     setUploadedFiles([]);
 
     if (uploadFiles.length === 0) {
-      toast({ 
-        title: "Form tidak lengkap", 
-        description: "Minimal pilih 1 file", 
-        variant: "destructive" 
-      });
+      toast({ title: "Form tidak lengkap", description: "Minimal pilih 1 file", variant: "destructive" });
       return;
     }
 
@@ -71,26 +64,18 @@ function UploadFile({ onUploadSuccess, onClose }) {
       formData.append("files", item.file);
       formData.append("file_types[]", item.fileType);
     });
-
-    serviceIds.forEach(id => {
-      formData.append("service_ids[]", id);
-    });
+    serviceIds.forEach(id => formData.append("service_ids[]", id));
 
     setLoading(true);
-
     try {
-      const response = await fetch('https://api-sakti-production.up.railway.app/api/marketing-kits', {
+      const response = await fetch('http://localhost:3000/api/marketing-kits', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: { Authorization: `Bearer ${authToken}` },
         body: formData,
       });
 
       const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || result.message || "Gagal mengunggah file");
-      }
+      if (!response.ok) throw new Error(result.error || result.message || "Gagal mengunggah file");
 
       toast({
         title: 'Berhasil!',
@@ -99,17 +84,14 @@ function UploadFile({ onUploadSuccess, onClose }) {
 
       setUploadedFiles(result.marketing_kits || []);
       setUploadFiles([]);
-      setFileType('');
       setServiceIds([]);
       e.target.reset?.();
       onUploadSuccess?.();
       onClose?.();
     } catch (error) {
-      console.error('Upload error:', error);
-
       toast({
         title: 'Upload Gagal',
-        description: error.message || error.hint || "Terjadi kesalahan saat upload",
+        description: error.message || "Terjadi kesalahan saat upload",
         variant: 'destructive',
       });
     } finally {
@@ -118,109 +100,101 @@ function UploadFile({ onUploadSuccess, onClose }) {
   };
 
   return (
-    <Card className="border-0 shadow-lg bg-white">
-      <CardHeader>
-        <CardTitle>Upload File Marketing</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-md rounded-2xl">
+      <CardContent className="p-6 space-y-8">
         <form onSubmit={handleFileUpload} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
-            {/* Multi-select Services */}
-            <div>
-              <Label htmlFor="services">Layanan Terkait</Label>
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="w-full flex flex-wrap justify-start items-start min-h-[5rem] gap-2 overflow-y-auto max-h-40 text-left"
-                  >
-                    {serviceIds.length > 0 ? (
-                      serviceIds.map((id) => {
-                        const service = services.find((s) => s.id.toString() === id.toString());
-                        if (!service) return null;
-                        return (
-                          <span
-                            key={service.id}
-                            className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800"
+          {/* === Layanan terkait === */}
+          <div>
+            <Label className="font-medium text-gray-700 mb-2 block">Layanan Terkait</Label>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full min-h-[4rem] flex flex-wrap items-center gap-2 text-left rounded-xl border-gray-300 hover:border-[#000476] transition-all"
+                >
+                  {serviceIds.length > 0 ? (
+                    serviceIds.map((id) => {
+                      const service = services.find((s) => s.id.toString() === id.toString());
+                      if (!service) return null;
+                      return (
+                        <span
+                          key={service.id}
+                          className="inline-flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium shadow-sm"
+                        >
+                          {service.code}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setServiceIds((prev) =>
+                                prev.filter((serviceId) => serviceId !== service.id.toString())
+                              );
+                            }}
+                            className="ml-1 text-blue-600 hover:text-blue-900"
                           >
-                            {service.code}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                            <XCircle size={14} />
+                          </button>
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span className="text-gray-400 text-sm">Pilih layanan terkait...</span>
+                  )}
+                  <Search className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="min-w-full max-w-sm p-0 shadow-md rounded-xl">
+                <Command>
+                  <CommandInput
+                    placeholder="Cari layanan..."
+                    onValueChange={(value) => setSearchTerm(value.toLowerCase())}
+                    className="focus:ring-0 focus:border-none"
+                  />
+                  <CommandList className="max-h-64 overflow-y-auto">
+                    <CommandEmpty>Layanan tidak ditemukan.</CommandEmpty>
+                    <CommandGroup>
+                      {services
+                        .filter((service) => {
+                          const keyword = searchTerm.trim().toLowerCase();
+                          if (!keyword) return true;
+                          const nameMatch = service.name?.toLowerCase().includes(keyword);
+                          const codeMatch = service.code?.toLowerCase().includes(keyword);
+                          return nameMatch || codeMatch;
+                        })
+                        .map((service) => {
+                          const isSelected = serviceIds.includes(service.id.toString());
+                          return (
+                            <CommandItem
+                              key={service.id}
+                              value={`${service.id}-${service.name}`}
+                              onSelect={() => {
                                 setServiceIds((prev) =>
-                                  prev.filter((serviceId) => serviceId !== service.id.toString())
+                                  isSelected
+                                    ? prev.filter((id) => id !== service.id.toString())
+                                    : [...prev, service.id.toString()]
                                 );
                               }}
-                              className="ml-1 text-red-600 hover:text-red-800 font-bold"
-                              title="Hapus"
+                              className="cursor-pointer"
                             >
-                              &times;
-                            </button>
-                          </span>
-                        );
-                      })
-                    ) : (
-                      <span className="text-muted-foreground">Pilih layanan...</span>
-                    )}
-                    <Search className="ml-auto h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="min-w-full max-w-sm p-0">
-                  <Command>
-                    <CommandInput
-                      placeholder="Cari layanan..."
-                      onValueChange={(value) => setSearchTerm(value.toLowerCase())}
-                    />
-                    <CommandList className="max-h-64 overflow-y-auto">
-                      <CommandEmpty>Layanan tidak ditemukan.</CommandEmpty>
-                      <CommandGroup>
-                        {services
-                          .filter((service) => {
-                            const keyword = searchTerm.trim().toLowerCase();
-                            if (!keyword) return true;
-                            const nameMatch = service.name?.toLowerCase().split(' ').some(word => word.startsWith(keyword));
-                            const codeMatch = service.code?.toLowerCase().startsWith(keyword);
-                            return nameMatch || codeMatch;
-                          })
-                          .map((service) => {
-                            const isSelected = serviceIds.includes(service.id.toString());
-                            return (
-                              <CommandItem
-                                key={service.id}
-                                value={`${service.id}-${service.name}-${service.code || ''}`}
-                                onSelect={() => {
-                                  setServiceIds((prev) =>
-                                    isSelected
-                                      ? prev.filter((id) => id !== service.id.toString())
-                                      : [...prev, service.id.toString()]
-                                  );
-                                }}
-                              >
-                                <Check
-                                  className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")}
-                                />
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{service.name}</span>
-                                  {service.code && (
-                                    <span className="text-xs text-gray-500">{service.code}</span>
-                                  )}
-                                </div>
-                              </CommandItem>
-                            );
-                          })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
+                              <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                              <div className="flex flex-col">
+                                <span className="font-medium">{service.name}</span>
+                                {service.code && <span className="text-xs text-gray-500">{service.code}</span>}
+                              </div>
+                            </CommandItem>
+                          );
+                        })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
-          {/* File Upload */}
+          {/* === Upload File === */}
           <div>
-            <Label htmlFor="file">Pilih File</Label>
+            <Label className="font-medium text-gray-700 mb-2 block">Pilih File</Label>
             <Input
               id="file"
               type="file"
@@ -229,50 +203,37 @@ function UploadFile({ onUploadSuccess, onClose }) {
                 const files = Array.from(e.target.files);
                 const MAX_FILE_SIZE_MB = 10;
                 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-
                 const validFiles = [];
+
                 files.forEach((f) => {
                   if (f.size > MAX_FILE_SIZE_BYTES) {
                     toast({
                       title: "File terlalu besar",
-                      description: `${f.name} melebihi batas maksimal ${MAX_FILE_SIZE_MB} MB`,
+                      description: `${f.name} melebihi ${MAX_FILE_SIZE_MB} MB`,
                       variant: "destructive",
                     });
                   } else {
-                    validFiles.push({
-                      file: f,
-                      fileType: "",
-                    });
+                    validFiles.push({ file: f, fileType: "" });
                   }
                 });
 
-                if (validFiles.length > 0) {
-                  setUploadFiles((prev) => [...prev, ...validFiles]);
-                }
-
-                // reset input supaya bisa pilih file yang sama lagi kalau salah
+                if (validFiles.length > 0) setUploadFiles((prev) => [...prev, ...validFiles]);
                 e.target.value = "";
               }}
               accept=".pdf,.doc,.docx,.ppt,.pptx"
+              className="rounded-xl border-gray-300 hover:border-[#000476] focus:border-[#000476] transition-all"
             />
-            <p className="text-sm text-gray-500 mt-1">
-              Format yang didukung: PDF, DOC, DOCX, PPT, PPTX
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Format: PDF, DOC, DOCX, PPT, PPTX (maks. 10MB)</p>
 
-            {/* Preview file + tipe file */}
             {uploadFiles.length > 0 && (
               <div className="mt-4 space-y-3">
                 {uploadFiles.map((item, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center gap-4 p-3 border rounded-lg bg-gray-50"
+                    className="flex items-center gap-4 p-3 border rounded-xl bg-gray-50 hover:bg-gray-100 transition-all"
                   >
-                    {/* Nama file */}
-                    <span className="flex-1 text-sm font-medium truncate max-w-[250px] overflow-hidden whitespace-nowrap">
-                      {item.file.name}
-                    </span>
-
-                    {/* Pilih tipe file */}
+                    <FileText className="text-blue-600 w-5 h-5" />
+                    <span className="flex-1 text-sm font-medium truncate">{item.file.name}</span>
                     <Select
                       value={item.fileType}
                       onValueChange={(val) => {
@@ -281,8 +242,8 @@ function UploadFile({ onUploadSuccess, onClose }) {
                         setUploadFiles(copy);
                       }}
                     >
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Pilih tipe file" />
+                      <SelectTrigger className="w-48 rounded-lg">
+                        <SelectValue placeholder="Tipe File" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Flyer">Flyer</SelectItem>
@@ -292,14 +253,12 @@ function UploadFile({ onUploadSuccess, onClose }) {
                         <SelectItem value="Others">Others</SelectItem>
                       </SelectContent>
                     </Select>
-
-                    {/* Tombol hapus */}
                     <button
                       type="button"
                       onClick={() => setUploadFiles(prev => prev.filter((_, i) => i !== idx))}
-                      className="text-red-600 hover:text-red-800 font-bold"
+                      className="text-red-600 hover:text-red-800 transition-colors"
                     >
-                      &times;
+                      <XCircle size={18} />
                     </button>
                   </div>
                 ))}
@@ -307,29 +266,30 @@ function UploadFile({ onUploadSuccess, onClose }) {
             )}
           </div>
 
-          <Button type="submit" style={{ backgroundColor: '#000476' }} disabled={loading}>
-            {loading ? 'Mengunggah...' : (
-              <>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload File
-              </>
-            )}
-          </Button>
+          {/* === Submit === */}
+          <div className="flex justify-end pt-4 border-t">
+            <Button
+              type="submit"
+              className="bg-[#000476] hover:bg-[#1919b3] text-white px-6 py-2 rounded-xl transition-all"
+              disabled={loading}
+            >
+              {loading ? 'Mengunggah...' : (
+                <>
+                  Upload File
+                </>
+              )}
+            </Button>
+          </div>
 
           {uploadedFiles.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <p className="text-sm text-green-600 font-medium">
+            <div className="mt-4 p-3 rounded-xl bg-green-50 border border-green-200">
+              <p className="text-sm text-green-700 font-medium mb-2">
                 {uploadedFiles.length} file berhasil diunggah:
               </p>
-              <ul className="list-disc list-inside text-sm text-blue-700">
+              <ul className="list-disc list-inside text-sm text-blue-700 space-y-1">
                 {uploadedFiles.map((file) => (
                   <li key={file.id}>
-                    <a
-                      href={file.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline"
-                    >
+                    <a href={file.file_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900">
                       {file.name}
                     </a>
                   </li>

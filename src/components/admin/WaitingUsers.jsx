@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog';
 
 const ITEMS_PER_PAGE = 30;
-const BASE_URL = 'https://api-sakti-production.up.railway.app';
+const BASE_URL = 'http://localhost:3000';
 
 function toTitleCase(str) {
   if (!str) return '';
@@ -143,9 +143,9 @@ function WaitingUsers() {
             </div>
           ) : (
             <>
-              <div className="overflow-auto">
+              <div className="rounded-xl border border-gray-100 overflow-hidden">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-gray-50">
                     <TableRow>
                       <TableHead>Nama</TableHead>
                       <TableHead>Email</TableHead>

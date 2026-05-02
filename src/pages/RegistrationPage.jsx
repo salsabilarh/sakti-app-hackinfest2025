@@ -1,19 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 import {
   Select,
   SelectContent,
@@ -21,14 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import useBotpressLoader from '../hooks/useBotpressLoader';
 
-const RegistrationPage = () => {
+function RegistrationPage() {
   const navigate = useNavigate();
   const [workUnits, setWorkUnits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -40,13 +33,19 @@ const RegistrationPage = () => {
 
   const shouldShowUnitKerja = formData.role && !['admin'].includes(formData.role);
   const validRoles = ['admin', 'management', 'viewer', 'pdo'];
+  useBotpressLoader();
+
+  useEffect(() => {
+    document.body.classList.add('login-page');
+    return () => document.body.classList.remove('login-page');
+  }, []);
 
   useEffect(() => {
     const fetchWorkUnits = async () => {
       try {
-        const response = await fetch('https://api-sakti-production.up.railway.app/api/units');
+        const response = await fetch('http://localhost:3000/api/units');
         const data = await response.json();
-        setWorkUnits(data.units);
+        setWorkUnits(data.units || []);
       } catch (error) {
         console.error('Gagal memuat data unit kerja:', error);
       }
@@ -60,16 +59,12 @@ const RegistrationPage = () => {
     }
   }, [formData.role]);
 
-  const isStrongPassword = (password) => {
-    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(password);
-  };
+  const isStrongPassword = (password) =>
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(password);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    setFormData((prevState) => ({
-      ...prevState,
-      [id]: value,
-    }));
+    setFormData((prevState) => ({ ...prevState, [id]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -104,7 +99,7 @@ const RegistrationPage = () => {
 
     if (shouldShowUnitKerja && !formData.workUnit) {
       toast({
-        title: 'Unit Kerja wajib diisi',
+        title: 'Unit kerja wajib diisi',
         description: 'Silakan pilih unit kerja untuk role yang dipilih.',
         variant: 'destructive',
       });
@@ -113,7 +108,7 @@ const RegistrationPage = () => {
     }
 
     try {
-      const response = await fetch('https://api-sakti-production.up.railway.app/api/auth/register', {
+      const response = await fetch('http://localhost:3000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -126,15 +121,20 @@ const RegistrationPage = () => {
         }),
       });
 
-      const text = await response.text();
-      const result = JSON.parse(text || '{}');
-
+      const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Registrasi gagal');
 
-      toast({ title: 'Pendaftaran berhasil!', description: 'Akun Anda telah dibuat. Silakan login.' });
+      toast({
+        title: 'Pendaftaran berhasil!',
+        description: 'Akun Anda telah dibuat. Silakan login.',
+      });
       navigate('/login');
     } catch (error) {
-      toast({ title: 'Gagal mendaftar', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Gagal mendaftar',
+        description: error.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -143,142 +143,169 @@ const RegistrationPage = () => {
   return (
     <>
       <Helmet>
-        <title>Registrasi - SAKTI Platform</title>
-        <meta name="description" content="Buat akun SAKTI - Service Knowledge Platform untuk analitik dan katalog layanan" />
+        <title>Registrasi | SAKTI Platform</title>
+        <meta name="description" content="Buat akun SAKTI - Service Knowledge Platform" />
+        <style>{`
+          #webchat .bpWebchat { position: unset !important; width: 100% !important; height: 100% !important; }
+          #webchat .bpFab { display: none !important; }
+        `}</style>
       </Helmet>
 
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-md"
-        >
-          <div className="mb-8 text-center">
-            <div className="flex items-center justify-center mb-4">
-              <img
-                src="https://storage.googleapis.com/hostinger-horizons-assets-prod/7e0684c8-f8f8-4241-a5d6-e17a7b2d1451/141feff6f242f1707b20096e0e33b90c.png"
-                alt="SAKTI Logo"
-                className="h-10"
-              />
+      <div className="min-h-screen grid lg:grid-cols-1 bg-gray-50">
+        <div className="flex flex-col items-center justify-center px-8 md:px-16">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg border border-gray-100 space-y-6"
+          >
+            <div className="text-center mb-4">
+              <img src="sakti.png" alt="SAKTI Logo" className="h-32 mx-auto mb-3 object-contain" />
+              <h2 className="text-3xl font-bold text-gray-900">Buat Akun Baru</h2>
+              <p className="text-gray-600 mt-2 text-center">
+                Daftarkan diri Anda untuk mulai menggunakan <b>SAKTI Platform</b>.
+              </p>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Buat Akun Baru</h2>
-            <p className="text-gray-600">Daftarkan diri Anda untuk mulai menggunakan platform.</p>
-          </div>
 
-          <Card className="border-0 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-xl">Form Pendaftaran</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Nama Lengkap</Label>
-                  <Input id="fullName" value={formData.fullName} onChange={handleChange} required className="h-11" />
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="fullName">Nama Lengkap</Label>
+                <Input
+                  id="fullName"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  placeholder="Masukkan nama lengkap"
+                  required
+                  className="h-11 mt-1"
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" value={formData.email} onChange={handleChange} required className="h-11" />
-                </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="nama@sucofindo.co.id"
+                  required
+                  className="h-11 mt-1"
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                      className="h-11 pr-10"
-                    />
-                    <div
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 cursor-pointer text-gray-500"
-                      style={{ transform: 'translateY(-50%)' }}
-                    >
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </div>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <div className="relative mt-1">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="Masukkan password"
+                    required
+                    className="h-11 pr-10"
+                  />
+                  <div
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-500 hover:text-gray-700"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Konfirmasi Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      className="h-11 pr-10"
-                    />
-                    <div
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 cursor-pointer text-gray-500"
-                      style={{ transform: 'translateY(-50%)' }}
-                    >
-                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </div>
+              <div>
+                <Label htmlFor="confirmPassword">Konfirmasi Password</Label>
+                <div className="relative mt-1">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    placeholder="Ulangi password"
+                    required
+                    className="h-11 pr-10"
+                  />
+                  <div
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-500 hover:text-gray-700"
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="role">Peran</Label>
-                  <Select onValueChange={(value) => setFormData({ ...formData, role: value })} required>
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Pilih peran" />
+              <div>
+                <Label htmlFor="role">Peran</Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                  required
+                >
+                  <SelectTrigger className="h-11 mt-1">
+                    <SelectValue placeholder="Pilih peran" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="management">Management</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                    <SelectItem value="pdo">PDO</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {shouldShowUnitKerja && (
+                <div>
+                  <Label htmlFor="workUnit">Unit Kerja</Label>
+                  <Select
+                    value={formData.workUnit}
+                    onValueChange={(value) => setFormData({ ...formData, workUnit: value })}
+                    required
+                  >
+                    <SelectTrigger className="h-11 mt-1">
+                      <SelectValue placeholder="Pilih unit kerja" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="management">Management</SelectItem>
-                      <SelectItem value="viewer">Viewer</SelectItem>
-                      <SelectItem value="pdo">PDO</SelectItem>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {workUnits.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id.toString()}>
+                          {unit.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+              )}
 
-                {shouldShowUnitKerja && (
-                  <div className="space-y-2">
-                    <Label htmlFor="workUnit">Unit Kerja</Label>
-                    <Select
-                      value={formData.workUnit}
-                      onValueChange={(value) => setFormData({ ...formData, workUnit: value })}
-                      required
-                    >
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Pilih unit kerja" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-60 overflow-y-auto">
-                        {workUnits.map((unit) => (
-                          <SelectItem key={unit.id} value={unit.id.toString()}>
-                            {unit.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <Button
+                type="submit"
+                className="w-full h-11 text-white font-medium bg-[#000476] hover:bg-[#0202a3] transition-all"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" /> Memproses...
+                  </>
+                ) : (
+                  'Daftar'
                 )}
+              </Button>
+            </form>
 
-                <Button type="submit" className="w-full h-11 text-white font-medium" style={{ backgroundColor: '#000476' }} disabled={loading}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : 'Daftar'}
+            <div className="text-center mt-4">
+              <Link to="/login">
+                <Button
+                  variant="outline"
+                  className="w-full h-11 border-[#000476] text-[#000476] hover:bg-blue-50 transition-colors"
+                >
+                  Sudah punya akun? Masuk di sini
                 </Button>
-              </form>
-            </CardContent>
-            <CardFooter>
-              <p className="text-sm text-gray-600 w-full text-center">
-                Sudah punya akun?{' '}
-                <Link to="/login" className="font-medium text-[#000476] hover:underline">
-                  Login di sini
-                </Link>
-              </p>
-            </CardFooter>
-          </Card>
-        </motion.div>
+              </Link>
+            </div>
+          </motion.div>
+        </div>
       </div>
     </>
   );
-};
+}
 
 export default RegistrationPage;

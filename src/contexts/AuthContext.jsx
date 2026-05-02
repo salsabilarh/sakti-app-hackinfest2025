@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const api = axios.create({
-    baseURL: 'https://api-sakti-production.up.railway.app/api',
+    baseURL: 'http://localhost:3000/api',
   });
 
   // Interceptor untuk attach token ke setiap request
