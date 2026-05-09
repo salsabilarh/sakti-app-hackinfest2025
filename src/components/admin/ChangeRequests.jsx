@@ -1,18 +1,18 @@
 /**
- * components/admin/UnitChangeRequests.jsx
+ * components/admin/ChangeRequests.jsx
  *
  * Komponen untuk mengelola permintaan perubahan unit kerja dan/atau role dari pengguna.
  * (Catatan: Backend saat ini hanya mendukung perubahan unit kerja, bukan role.
  *  Komponen ini tetap dapat diadaptasi jika nanti role change request ditambahkan.)
  *
  * Data diambil dari endpoint:
- *   GET  /api/admin/unit-change-requests   (daftar permintaan, support pagination)
- *   PUT  /api/admin/unit-change-requests/:id/process (action: 'approve' | 'reject')
+ *   GET  /api/admin/change-requests   (daftar permintaan, support pagination)
+ *   PUT  /api/admin/change-requests/:id/process (action: 'approve' | 'reject')
  *
  * ============================================================
  * STRUKTUR DATA RESPONSE API
  * ============================================================
- * GET /admin/unit-change-requests:
+ * GET /admin/change-requests:
  * {
  *   success: true,
  *   data: {
@@ -179,11 +179,11 @@ const TableSkeleton = () => (
 // ============================================================
 
 /**
- * UnitChangeRequestPage - Halaman daftar permintaan perubahan unit/role.
+ * ChangeRequestPage - Halaman daftar permintaan perubahan unit/role.
  * Admin dapat menyetujui atau menolak permintaan.
  * @returns {JSX.Element}
  */
-const UnitChangeRequestPage = () => {
+const ChangeRequestPage = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -201,7 +201,7 @@ const UnitChangeRequestPage = () => {
     async (page = 1) => {
       setLoading(true);
       try {
-        const res = await api.get('/admin/unit-change-requests', {
+        const res = await api.get('/admin/change-requests', {
           params: { page, limit: PAGINATION.ADMIN_LIMIT },
         });
         const responseData = res.data?.data ?? res.data;
@@ -211,7 +211,7 @@ const UnitChangeRequestPage = () => {
         setTotalPages(Number(total) || 1);
         setCurrentPage(page);
       } catch (error) {
-        console.error('[UnitChangeRequestPage] Fetch error:', error);
+        console.error('[ChangeRequestPage] Fetch error:', error);
         toast({
           title: 'Gagal memuat data',
           description: error.response?.data?.message || 'Terjadi kesalahan.',
@@ -236,7 +236,7 @@ const UnitChangeRequestPage = () => {
     setActionId(id);
     try {
       // Endpoint yang benar sesuai adminController.js
-      await api.put(`/admin/unit-change-requests/${id}/process`, { action });
+      await api.put(`/admin/change-requests/${id}/process`, { action });
       toast({
         title: action === 'approve' ? 'Permintaan Disetujui' : 'Permintaan Ditolak',
         description:
@@ -404,4 +404,4 @@ const UnitChangeRequestPage = () => {
   );
 };
 
-export default UnitChangeRequestPage;
+export default ChangeRequestPage;

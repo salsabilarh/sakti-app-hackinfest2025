@@ -5,7 +5,7 @@
  * - Statistik dashboard (AdminStats)
  * - Manajemen pengguna (UsersManagement)
  * - Verifikasi pendaftaran (WaitingUsers)
- * - Permintaan perubahan unit (UnitChangeRequests)
+ * - Permintaan perubahan unit dan atau role (ChangeRequests)
  * - Permintaan reset password (PasswordResetRequests)
  * - Log download (DownloadLogs)
  *
@@ -44,7 +44,7 @@
  * - AdminStats          : menampilkan kartu statistik ringkasan
  * - UsersManagement     : CRUD pengguna (admin role required di dalamnya)
  * - WaitingUsers        : daftar pengguna menunggu verifikasi
- * - UnitChangeRequests  : daftar permintaan pindah unit
+ * - ChangeRequests      : daftar permintaan perubahan unit dan atau role
  * - PasswordResetRequests : daftar permintaan reset password
  * - DownloadLogs        : log aktivitas download marketing kit
  */
@@ -57,7 +57,7 @@ import { useAuth, ROLES } from '@/contexts/AuthContext.jsx';
 import AdminStats from '@/components/admin/AdminStats.jsx';
 import UsersManagement from '@/components/admin/UsersManagement.jsx';
 import WaitingUsers from '@/components/admin/WaitingUsers.jsx';
-import UnitChangeRequests from '@/components/admin/UnitChangeRequests.jsx';
+import ChangeRequests from '@/components/admin/ChangeRequests.jsx';
 import PasswordResetRequests from '@/components/admin/PasswordResetRequests.jsx';
 import DownloadLogs from '@/components/admin/DownloadLogs.jsx';
 
@@ -76,7 +76,7 @@ import DownloadLogs from '@/components/admin/DownloadLogs.jsx';
 const TABS = [
   { id: 'users', label: 'Manajemen User', icon: Users, component: UsersManagement },
   { id: 'waiting', label: 'Persetujuan Pendaftaran', icon: UserCheck, component: WaitingUsers },
-  { id: 'unitChange', label: 'Permintaan Pindah Unit', icon: GitPullRequest, component: UnitChangeRequests },
+  { id: 'changeRequests', label: 'Permintaan Perubahan', icon: GitPullRequest, component: ChangeRequests },
   { id: 'resetPassword', label: 'Permintaan Reset Password', icon: Key, component: PasswordResetRequests },
   { id: 'logs', label: 'Log Download', icon: Download, component: DownloadLogs },
 ];
