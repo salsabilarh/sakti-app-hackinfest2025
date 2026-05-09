@@ -1,4 +1,25 @@
+/**
+ * components/Header.jsx
+ *
+ * Komponen header aplikasi yang menampilkan informasi user, menu dropdown,
+ * dan tombol logout. Header bersifat sticky di bagian atas halaman.
+ *
+ * ============================================================
+ * PROPS
+ * ============================================================
+ * @param {function} onToggleMobile - Callback untuk toggle sidebar mobile
+ *
+ * ============================================================
+ * PANDUAN MAINTENANCE
+ * ============================================================
+ * - Role badge colors: dapat disesuaikan di object `roleColorMap`
+ * - Inisial nama diambil dari 2 kata pertama (max 2 huruf)
+ * - Menggunakan useAuth context untuk data user dan fungsi logout
+ * - Navigasi menggunakan react-router-dom's useNavigate
+ */
+
 import React, { useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { Button } from '@/components/ui/button';
 import { LogOut, User, Settings, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,37 +27,73 @@ import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuItem,  // 👈 PERBAIKAN: huruf M besar (bukan dropdownMenuItem)
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu.jsx';
+} from '@/components/ui/dropdown-menu';
 
+// ============================================================
+// Helper Functions
+// ============================================================
+
+/**
+ * Mendapatkan inisial dari nama (max 2 huruf).
+ * Contoh: "John Doe" → "JD", "Jane" → "J".
+ * @param {string} name - Nama lengkap
+ * @returns {string} Inisial (huruf besar)
+ */
 function getInitials(name = '') {
   return name
     .trim()
     .split(/\s+/)
     .slice(0, 2)
-    .map(p => p[0]?.toUpperCase() || '')
+    .map((word) => word[0]?.toUpperCase() || '')
     .join('');
 }
 
+/**
+ * Komponen badge role dengan warna berbeda sesuai role.
+ * @param {Object} props
+ * @param {string} props.role - Role user
+ * @returns {JSX.Element|null}
+ */
 function RoleChip({ role }) {
   if (!role) return null;
-  const map = {
+
+  const roleColorMap = {
     admin: 'bg-rose-100 text-rose-700',
     management: 'bg-emerald-100 text-emerald-700',
     pdo: 'bg-amber-100 text-amber-700',
     viewer: 'bg-gray-100 text-gray-700',
   };
-  const cls = map[role] || 'bg-gray-100 text-gray-700';
+  const colorClass = roleColorMap[role] || 'bg-gray-100 text-gray-700';
+
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${cls}`}>
+    <span
+      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${colorClass}`}
+    >
       {role}
     </span>
   );
 }
 
+RoleChip.propTypes = {
+  role: PropTypes.oneOf(['admin', 'management', 'pdo', 'viewer']),
+};
+
+// ============================================================
+// Komponen Utama: Header
+// ============================================================
+
+/**
+ * Header aplikasi yang menampilkan sidebar toggle, avatar user,
+ * dan dropdown menu profil.
+ *
+ * @param {Object} props
+ * @param {function} props.onToggleMobile - Fungsi untuk toggle sidebar mobile
+ * @returns {JSX.Element}
+ */
 function Header({ onToggleMobile }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -58,18 +115,18 @@ function Header({ onToggleMobile }) {
       "
     >
       <div className="flex items-center gap-3">
-        {/* Mobile menu */}
+        {/* Tombol Menu untuk mobile */}
         <button
           className="lg:hidden text-gray-700 hover:text-gray-900 active:scale-95 transition"
           onClick={onToggleMobile}
           aria-label="Toggle Menu"
+          type="button"
         >
           <Menu className="w-6 h-6" />
         </button>
-        
-        {/* Right actions */}
+
+        {/* Area kanan: dropdown akun */}
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
-          {/* Account dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -81,7 +138,7 @@ function Header({ onToggleMobile }) {
                 "
               >
                 <div className="flex items-center gap-2">
-                  {/* Avatar */}
+                  {/* Avatar dengan inisial */}
                   <div
                     className="
                       size-7 rounded-lg grid place-items-center
@@ -93,7 +150,7 @@ function Header({ onToggleMobile }) {
                   >
                     {initials || <User className="w-4 h-4" />}
                   </div>
-                  {/* Name + role */}
+                  {/* Informasi user (nama + role) - hanya tampil di layar >= sm */}
                   <div className="hidden sm:flex flex-col items-start leading-tight">
                     <span className="text-xs text-gray-500">Signed in as</span>
                     <span className="text-sm font-medium text-gray-800 truncate max-w-[180px]">
@@ -108,6 +165,7 @@ function Header({ onToggleMobile }) {
               <DropdownMenuLabel className="flex items-center gap-2">
                 <div
                   className="size-8 rounded-md grid place-items-center bg-indigo-50 text-[#000476] text-xs font-bold"
+                  aria-hidden
                 >
                   {initials || <User className="w-4 h-4" />}
                 </div>
@@ -117,12 +175,15 @@ function Header({ onToggleMobile }) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/edit-profile')}>
+              <DropdownMenuItem onClick={() => navigate('/edit-profil')}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-rose-600 focus:text-rose-700">
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="text-rose-600 focus:text-rose-700"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
@@ -133,5 +194,9 @@ function Header({ onToggleMobile }) {
     </header>
   );
 }
+
+Header.propTypes = {
+  onToggleMobile: PropTypes.func.isRequired,
+};
 
 export default Header;

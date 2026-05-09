@@ -1,3 +1,38 @@
+/**
+ * pages/EditProfilePage.jsx
+ *
+ * Halaman untuk mengelola profil pengguna, termasuk:
+ * - Mengubah nama lengkap
+ * - Mengubah password
+ * - Mengajukan permintaan perubahan role dan/atau unit kerja (untuk non-admin)
+ *
+ * ============================================================
+ * FITUR UTAMA
+ * ============================================================
+ * 1. Identity Card: menampilkan informasi ringkas user (nama, email, role, unit)
+ * 2. Form Edit Profil: hanya dapat mengubah nama (email, role, unit bersifat read-only)
+ * 3. Form Ubah Password: validasi kekuatan password, konfirmasi, dan submit ke API
+ * 4. Dialog Ajukan Perubahan Role/Unit: untuk user non-admin, mengirim permintaan
+ *    ke admin (endpoint /api/auth/change-request)
+ *
+ * ============================================================
+ * STRUKTUR DATA API
+ * ============================================================
+ * PUT    /auth/profile          → update profil (full_name)
+ * PUT    /auth/update-password  → ganti password
+ * POST   /auth/change-request   → ajukan perubahan role/unit (body: { requested_role?, requested_unit_id? })
+ * GET    /units                 → daftar unit kerja untuk dropdown
+ *
+ * ============================================================
+ * PANDUAN MAINTENANCE
+ * ============================================================
+ * - Perhatikan bahwa endpoint /auth/change-request belum tentu ada di backend;
+ *   pastikan sudah diimplementasikan sesuai kebutuhan.
+ * - Validasi password menggunakan regex yang sama dengan backend.
+ * - Score kekuatan password dihitung secara client-side untuk UX.
+ * - Role yang dapat diminta hanya 'management' dan 'viewer', kecuali jika backend mendukung lain.
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
@@ -7,27 +42,39 @@ import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { useToast } from '@/components/ui/use-toast.js';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose,
+  Select, SelectContent, SelectItem,
+  SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog, DialogClose, DialogContent, DialogDescription,
+  DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
-import { Eye, EyeOff, ShieldCheck, AtSign, Building2, User2, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  Eye, EyeOff, ShieldCheck, AtSign,
+  Building2, User2, CheckCircle2, AlertCircle,
+} from 'lucide-react';
 import api from '@/lib/api';
 
+// ============================================================
+// Helper Functions
+// ============================================================
+
+/**
+ * Mengubah string ke Title Case (setiap kata dimulai huruf besar).
+ * @param {string} str
+ * @returns {string}
+ */
 function toTitleCase(str) {
   if (!str) return '';
-  return str.replace(/\w\S*/g, (txt) =>
-    txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
-  );
+  return str.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
 }
 
+/**
+ * Mendapatkan inisial dari nama (max 2 huruf).
+ * @param {string} name
+ * @returns {string}
+ */
 function getInitials(name = '') {
   return name
     .trim()
@@ -37,6 +84,11 @@ function getInitials(name = '') {
     .join('');
 }
 
+/**
+ * Menghitung skor kekuatan password (0-5).
+ * @param {string} pw - Password yang akan dinilai
+ * @returns {number} Skor antara 0-5
+ */
 function strengthScore(pw = '') {
   let score = 0;
   if (pw.length >= 8) score++;
@@ -47,99 +99,96 @@ function strengthScore(pw = '') {
   return Math.min(score, 5);
 }
 
-const barClasses = [
-  'bg-gray-200',
-  'bg-rose-400',
-  'bg-amber-400',
-  'bg-yellow-400',
-  'bg-lime-500',
-  'bg-emerald-600',
+/**
+ * Mapping skor ke class Tailwind untuk bar kekuatan password.
+ */
+const strengthBarClasses = [
+  'bg-gray-200',   // skor 0
+  'bg-rose-400',   // skor 1
+  'bg-amber-400',  // skor 2
+  'bg-yellow-400', // skor 3
+  'bg-lime-500',   // skor 4
+  'bg-emerald-600',// skor 5
 ];
 
+// ============================================================
+// Komponen Utama
+// ============================================================
+
+/**
+ * EditProfilePage - Halaman edit profil pengguna.
+ * @returns {JSX.Element}
+ */
 function EditProfilePage() {
-  const { user, updateUser, authToken } = useAuth();
+  const { user, updateUser } = useAuth();
   const { toast } = useToast();
 
-  // Profile info
-  const [formData, setFormData] = useState({
-    name: user?.full_name || '',
-  });
+  // ========== EDIT PROFIL: Nama ==========
+  const [formData, setFormData] = useState({ full_name: user?.full_name || '' });
   const [savingInfo, setSavingInfo] = useState(false);
 
-  // Password
+  // Saat user berubah, reset form nama
+  useEffect(() => {
+    setFormData({ full_name: user?.full_name || '' });
+  }, [user?.full_name]);
+
+  /**
+   * Submit perubahan nama.
+   * @param {Event} e
+   */
+  const handleInfoSubmit = async (e) => {
+    e.preventDefault();
+    const trimmed = formData.full_name?.trim();
+    if (!trimmed) {
+      toast({ title: 'Nama tidak boleh kosong', variant: 'destructive' });
+      return;
+    }
+    if (trimmed === user?.full_name) {
+      toast({ title: 'Tidak ada perubahan', description: 'Nama masih sama dengan sebelumnya.' });
+      return;
+    }
+    setSavingInfo(true);
+    try {
+      // API call untuk update profil (endpoint disesuaikan dengan backend)
+      await api.put('/auth/profile', { full_name: trimmed });
+      // Update context user lokal
+      updateUser({ ...user, full_name: trimmed });
+      toast({ title: 'Profil Diperbarui', description: 'Nama berhasil disimpan ke profil Anda.' });
+    } catch (err) {
+      toast({
+        title: 'Gagal memperbarui profil',
+        description: err?.response?.data?.message || err.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingInfo(false);
+    }
+  };
+
+  // ========== UBAH PASSWORD ==========
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
-  const [show, setShow] = useState({
-    current: false,
-    next: false,
-    confirm: false,
-  });
-  const score = useMemo(() => strengthScore(passwordData.newPassword), [passwordData.newPassword]);
+  const [show, setShow] = useState({ current: false, next: false, confirm: false });
   const [changingPw, setChangingPw] = useState(false);
 
-  // Units
-  const [units, setUnits] = useState([]);
-  const [newUnitId, setNewUnitId] = useState('');
-  const [requestingUnit, setRequestingUnit] = useState(false);
+  // Hitung skor kekuatan password baru
+  const passwordScore = useMemo(() => strengthScore(passwordData.newPassword), [passwordData.newPassword]);
 
-  // Fetch units
-  useEffect(() => {
-    async function fetchUnits() {
-      try {
-        const response = await api.get('/units');
-        setUnits(response.data.units || []);
-      } catch (error) {
-        toast({
-          title: 'Gagal memuat data unit',
-          description: 'Tidak dapat mengambil daftar unit kerja.',
-          variant: 'destructive',
-        });
-      }
-    }
-    fetchUnits();
-  }, [toast]);
-
-  const initials = useMemo(() => getInitials(user?.name || ''), [user?.name]);
-  const roleLabel = useMemo(() => (user?.role === 'pdo' ? 'PDO' : toTitleCase(user?.role)), [user?.role]);
-
-  // const handleInfoSubmit = async (e) => {
-  //   e.preventDefault();
-  //   if (!formData.name?.trim()) {
-  //     toast({ title: 'Nama tidak boleh kosong', variant: 'destructive' });
-  //     return;
-  //   }
-  //   try {
-  //     setSavingInfo(true);
-  //     // Jika ada endpoint update profile di server, panggil juga:
-  //     await api.put('/auth/profile', { full_name: formData.name }, { headers: { Authorization: `Bearer ${authToken}` } });
-  //     updateUser({ name: formData.name }); // sinkronkan context
-  //     toast({
-  //       title: 'Profil Diperbarui',
-  //       description: 'Informasi profil Anda berhasil disimpan.',
-  //     });
-  //   } catch (err) {
-  //     toast({
-  //       title: 'Gagal memperbarui profil',
-  //       description: err?.response?.data?.message || err.message,
-  //       variant: 'destructive',
-  //     });
-  //   } finally {
-  //     setSavingInfo(false);
-  //   }
-  // };
-
+  /**
+   * Submit perubahan password.
+   * @param {Event} e
+   */
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    const strongPasswordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-
-    if (!strongPasswordRegex.test(passwordData.newPassword)) {
+    // Validasi kekuatan password (sama dengan aturan backend)
+    const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!strongRegex.test(passwordData.newPassword)) {
       toast({
         title: 'Password Lemah',
-        description: 'Min. 8 karakter, huruf besar, kecil, angka, dan simbol.',
+        description: 'Min. 8 karakter, huruf besar, huruf kecil, angka, dan simbol.',
         variant: 'destructive',
       });
       return;
@@ -152,22 +201,15 @@ function EditProfilePage() {
       });
       return;
     }
-
+    setChangingPw(true);
     try {
-      setChangingPw(true);
-      const response = await api.put(
-        '/auth/update-password',
-        {
-          current_password: passwordData.currentPassword,
-          new_password: passwordData.newPassword,
-          confirm_password: passwordData.confirmPassword,
-        },
-        { headers: { Authorization: `Bearer ${authToken}` } }
-      );
-      toast({
-        title: 'Password Diubah',
-        description: response.data.message || 'Password berhasil diubah.',
+      await api.put('/auth/update-password', {
+        current_password: passwordData.currentPassword,
+        new_password: passwordData.newPassword,
+        confirm_password: passwordData.confirmPassword,
       });
+      toast({ title: 'Password Diubah', description: 'Password berhasil diubah.' });
+      // Reset form password
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
       toast({
@@ -180,27 +222,89 @@ function EditProfilePage() {
     }
   };
 
-  const handleUnitChangeRequest = async () => {
-    if (!newUnitId) {
+  // ========== AJUKAN PERUBAHAN ROLE / UNIT ==========
+  const [units, setUnits] = useState([]);
+  const [requestedRole, setRequestedRole] = useState('');
+  const [requestedUnitId, setRequestedUnitId] = useState('');
+  const [requestingChange, setRequestingChange] = useState(false);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [openChangeModal, setOpenChangeModal] = useState(false);
+
+  // Role yang dapat diminta (tidak termasuk admin, dan tidak sama dengan role saat ini)
+  const availableRoles = ['management', 'viewer'].filter(r => r !== user?.role);
+
+  /**
+   * Fetch daftar unit kerja untuk dropdown.
+   */
+  useEffect(() => {
+    const fetchUnits = async () => {
+      setLoadingUnits(true);
+      try {
+        const response = await api.get('/units');
+        // Normalisasi response (berbagai kemungkinan struktur)
+        let unitsData = [];
+        if (response.data?.data?.units) unitsData = response.data.data.units;
+        else if (response.data?.units) unitsData = response.data.units;
+        else if (response.data?.data && Array.isArray(response.data.data)) unitsData = response.data.data;
+        else if (Array.isArray(response.data)) unitsData = response.data;
+        else {
+          console.warn('Struktur response /units tidak dikenali:', response.data);
+          toast({ title: 'Gagal memuat unit kerja', description: 'Struktur data tidak sesuai.', variant: 'destructive' });
+          setUnits([]);
+          return;
+        }
+        const validUnits = unitsData.filter(u => u.id && u.name);
+        setUnits(validUnits);
+      } catch (error) {
+        console.error('Error fetching units:', error);
+        toast({
+          title: 'Gagal memuat daftar unit',
+          description: error.response?.data?.message || error.message,
+          variant: 'destructive',
+        });
+        setUnits([]);
+      } finally {
+        setLoadingUnits(false);
+      }
+    };
+    fetchUnits();
+  }, [toast]);
+
+  /**
+   * Kirim permintaan perubahan role/unit ke backend.
+   */
+  const handleChangeRequest = async () => {
+    if (!requestedRole && !requestedUnitId) {
       toast({
-        title: 'Pilih Unit Kerja',
-        description: 'Silakan pilih unit kerja baru.',
+        title: 'Pilih Perubahan',
+        description: 'Pilih minimal satu: role baru atau unit baru.',
         variant: 'destructive',
       });
       return;
     }
+    if (requestedRole && requestedRole === user?.role) {
+      toast({ title: 'Role Sama', description: 'Role yang dipilih sama dengan role Anda saat ini.', variant: 'destructive' });
+      return;
+    }
+    if (requestedUnitId && user?.unit?.id === requestedUnitId) {
+      toast({ title: 'Unit Sama', description: 'Unit yang dipilih sama dengan unit Anda saat ini.', variant: 'destructive' });
+      return;
+    }
+    setRequestingChange(true);
     try {
-      setRequestingUnit(true);
-      await api.post(
-        '/auth/unit-change-request',
-        { requested_unit_id: newUnitId },
-        { headers: { Authorization: `Bearer ${authToken}` } }
-      );
-      toast({
-        title: 'Permintaan Terkirim',
-        description: 'Menunggu persetujuan admin.',
-      });
-      setNewUnitId('');
+      const payload = {};
+      if (requestedRole) payload.requested_role = requestedRole;
+      if (requestedUnitId) payload.requested_unit_id = requestedUnitId;
+      await api.post('/auth/change-request', payload);
+      let successMessage = '';
+      if (requestedRole && requestedUnitId) successMessage = 'Permintaan perubahan role dan unit berhasil diajukan.';
+      else if (requestedRole) successMessage = 'Permintaan perubahan role berhasil diajukan.';
+      else successMessage = 'Permintaan perubahan unit berhasil diajukan.';
+      toast({ title: 'Permintaan Terkirim', description: successMessage });
+      // Reset form dan tutup modal
+      setRequestedRole('');
+      setRequestedUnitId('');
+      setOpenChangeModal(false);
     } catch (error) {
       toast({
         title: 'Gagal Mengirim Permintaan',
@@ -208,19 +312,37 @@ function EditProfilePage() {
         variant: 'destructive',
       });
     } finally {
-      setRequestingUnit(false);
+      setRequestingChange(false);
     }
   };
 
+  /**
+   * Handler modal close: reset form jika ditutup tanpa submit.
+   */
+  const handleModalClose = (open) => {
+    if (!open) {
+      setRequestedRole('');
+      setRequestedUnitId('');
+    }
+    setOpenChangeModal(open);
+  };
+
+  // ========== Derived data untuk tampilan ==========
+  const initials = useMemo(() => getInitials(user?.full_name || ''), [user?.full_name]);
+  const roleLabel = useMemo(() => toTitleCase(user?.role), [user?.role]);
+
+  // ============================================================
+  // Render
+  // ============================================================
   return (
     <>
       <Helmet>
         <title>Edit Profile | SAKTI Platform</title>
-        <meta name="description" content="Kelola profil, unit kerja, dan kata sandi Anda." />
+        <meta name="description" content="Kelola profil, unit kerja, role, dan kata sandi Anda." />
       </Helmet>
 
       <div className="space-y-6">
-        {/* Hero / Identity Card */}
+        {/* Identity Card */}
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
@@ -235,75 +357,104 @@ function EditProfilePage() {
               </div>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
-                  {user?.full_name}
+                  {user?.full_name || '—'}
                 </h1>
                 <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-600">
                   <span className="inline-flex items-center gap-1">
                     <AtSign className="w-4 h-4 text-indigo-600" />
-                    {user?.email}
+                    {user?.email || '—'}
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                    {user?.role ? (user?.role === 'pdo' ? 'PDO' : toTitleCase(user?.role)) : '-'}
+                    {roleLabel || '-'}
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Building2 className="w-4 h-4 text-indigo-600" />
-                    {user?.unit?.name || user?.unit_kerja || '-'}
+                    {user?.unit?.name || '-'}
                   </span>
                 </div>
               </div>
             </div>
+
+            {/* Tombol Ajukan Perubahan Role/Unit (khusus non-admin) */}
             {user?.role !== 'admin' && (
-              <Dialog>
+              <Dialog open={openChangeModal} onOpenChange={handleModalClose}>
                 <DialogTrigger asChild>
                   <Button className="bg-[#000476] hover:bg-indigo-900 text-white rounded-xl">
-                    Ajukan Ganti Unit
+                    Ajukan Perubahan Role / Unit
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[480px]">
                   <DialogHeader>
-                    <DialogTitle>Request Perubahan Unit Kerja</DialogTitle>
+                    <DialogTitle>Ajukan Perubahan Role / Unit Kerja</DialogTitle>
                     <DialogDescription>
-                      Pilih unit kerja baru. Permintaan akan dikirim ke admin untuk persetujuan.
+                      Pilih role baru dan/atau unit kerja baru. Minimal salah satu harus diisi.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
+                    {/* Role baru */}
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right">Role Baru</Label>
+                      <div className="col-span-3">
+                        <Select
+                          value={requestedRole}
+                          onValueChange={setRequestedRole}
+                          disabled={availableRoles.length === 0}
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={availableRoles.length === 0 ? "Tidak ada role lain" : "Pilih role (opsional)"}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableRoles.map(r => (
+                              <SelectItem key={r} value={r}>{toTitleCase(r)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="mt-1 text-xs text-gray-500">Role yang tersedia: Management, Viewer</p>
+                      </div>
+                    </div>
+                    {/* Unit baru */}
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label className="text-right">Unit Baru</Label>
                       <div className="col-span-3">
-                        <Select value={newUnitId} onValueChange={setNewUnitId}>
+                        <Select
+                          value={requestedUnitId}
+                          onValueChange={setRequestedUnitId}
+                          disabled={loadingUnits}
+                        >
                           <SelectTrigger>
-                            <SelectValue placeholder="Pilih unit..." />
+                            <SelectValue
+                              placeholder={loadingUnits ? "Memuat unit..." : "Pilih unit (opsional)"}
+                            />
                           </SelectTrigger>
-                          <SelectContent className="max-h-72">
-                            {units.map((unit) => (
+                          <SelectContent className="max-h-72 overflow-y-auto">
+                            {units.map(unit => (
                               <SelectItem key={unit.id} value={String(unit.id)}>
                                 {unit.name}
                               </SelectItem>
                             ))}
+                            {units.length === 0 && !loadingUnits && (
+                              <div className="px-2 py-1 text-sm text-gray-500">Tidak ada unit tersedia</div>
+                            )}
                           </SelectContent>
                         </Select>
-                        <p className="mt-2 text-xs text-gray-500">
-                          Pastikan unit sesuai struktur organisasi Anda.
-                        </p>
+                        <p className="mt-1 text-xs text-gray-500">Pastikan unit sesuai dengan struktur organisasi.</p>
                       </div>
                     </div>
                   </div>
                   <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="secondary">
-                        Batal
-                      </Button>
-                    </DialogClose>
-                    <DialogClose asChild>
-                      <Button
-                        onClick={handleUnitChangeRequest}
-                        className="bg-[#000476] hover:bg-indigo-900"
-                        disabled={requestingUnit}
-                      >
-                        {requestingUnit ? 'Mengirim…' : 'Kirim Permintaan'}
-                      </Button>
-                    </DialogClose>
+                    <Button type="button" variant="secondary" onClick={() => setOpenChangeModal(false)}>
+                      Batal
+                    </Button>
+                    <Button
+                      onClick={handleChangeRequest}
+                      disabled={requestingChange || (!requestedRole && !requestedUnitId)}
+                      className="bg-[#000476] hover:bg-indigo-900"
+                    >
+                      {requestingChange ? 'Mengirim…' : 'Kirim Permintaan'}
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -311,9 +462,9 @@ function EditProfilePage() {
           </div>
         </motion.div>
 
-        {/* Content */}
+        {/* Grid dua kolom: Kiri = Edit Profil, Kanan = Ubah Password */}
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Profile Info */}
+          {/* Edit Profil (nama) */}
           <motion.div
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
@@ -324,38 +475,30 @@ function EditProfilePage() {
                 <CardTitle>Informasi Profil</CardTitle>
               </CardHeader>
               <CardContent>
-                <form className="space-y-4">
+                <form onSubmit={handleInfoSubmit} className="space-y-4">
                   <div>
                     <Label htmlFor="name">Nama Lengkap</Label>
                     <Input
                       id="name"
-                      value={user?.full_name}
-                      disabled
+                      value={formData.full_name}
+                      onChange={(e) => setFormData({ full_name: e.target.value })}
+                      placeholder="Nama lengkap Anda"
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" value={user?.email || ''} disabled />
+                      <Input id="email" value={user?.email || ''} disabled className="bg-gray-50" />
                     </div>
                     <div>
                       <Label htmlFor="role">Role</Label>
-                      <Input
-                        id="role"
-                        value={user?.role === 'pdo' ? 'PDO' : toTitleCase(user?.role)}
-                        disabled
-                      />
+                      <Input id="role" value={roleLabel || ''} disabled className="bg-gray-50" />
                     </div>
                   </div>
                   <div>
                     <Label htmlFor="unit_kerja">Unit Kerja</Label>
-                    <Input
-                      id="unit_kerja"
-                      value={user?.unit?.name || user?.unit_kerja || ''}
-                      disabled
-                    />
+                    <Input id="unit_kerja" value={user?.unit?.name || '-'} disabled className="bg-gray-50" />
                   </div>
-
                   <div className="flex items-center gap-2 pt-2">
                     <Button
                       type="submit"
@@ -366,7 +509,7 @@ function EditProfilePage() {
                     </Button>
                     <span className="text-xs text-gray-500">
                       <CheckCircle2 className="inline w-3.5 h-3.5 mr-1 text-emerald-600" />
-                      Perubahan nama langsung tersimpan ke profil.
+                      Perubahan nama tersimpan ke profil.
                     </span>
                   </div>
                 </form>
@@ -374,7 +517,7 @@ function EditProfilePage() {
             </Card>
           </motion.div>
 
-          {/* Change Password */}
+          {/* Ubah Password */}
           <motion.div
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
@@ -386,6 +529,7 @@ function EditProfilePage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                  {/* Current Password */}
                   <div className="relative">
                     <Label htmlFor="currentPassword">Password Saat Ini</Label>
                     <Input
@@ -398,14 +542,14 @@ function EditProfilePage() {
                     />
                     <button
                       type="button"
-                      onClick={() => setShow((s) => ({ ...s, current: !s.current }))}
+                      onClick={() => setShow(s => ({ ...s, current: !s.current }))}
                       className="absolute right-3 top-[38px] text-gray-500"
-                      aria-label={show.current ? 'Sembunyikan password' : 'Tampilkan password'}
                     >
-                      {show.current ? <EyeOff size={20} /> : <Eye size={20} />}
+                      {show.current ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
 
+                  {/* New Password */}
                   <div className="relative">
                     <Label htmlFor="newPassword">Password Baru</Label>
                     <Input
@@ -418,38 +562,39 @@ function EditProfilePage() {
                     />
                     <button
                       type="button"
-                      onClick={() => setShow((s) => ({ ...s, next: !s.next }))}
+                      onClick={() => setShow(s => ({ ...s, next: !s.next }))}
                       className="absolute right-3 top-[38px] text-gray-500"
-                      aria-label={show.next ? 'Sembunyikan password' : 'Tampilkan password'}
                     >
-                      {show.next ? <EyeOff size={20} /> : <Eye size={20} />}
+                      {show.next ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
-
-                    {/* Strength meter */}
+                    {/* Strength indicator */}
                     <div className="mt-2">
                       <div className="flex gap-1">
                         {Array.from({ length: 5 }).map((_, i) => (
                           <div
                             key={i}
-                            className={`h-1.5 flex-1 rounded ${i < score ? barClasses[score] : 'bg-gray-200'}`}
+                            className={`h-1.5 flex-1 rounded transition-colors ${
+                              i < passwordScore ? strengthBarClasses[passwordScore] : 'bg-gray-200'
+                            }`}
                           />
                         ))}
                       </div>
-                      <div className="text-[11px] mt-1 text-gray-500 flex items-center gap-1">
-                        {score < 3 ? (
+                      <p className="text-[11px] mt-1 text-gray-500 flex items-center gap-1">
+                        {passwordScore < 3 ? (
                           <>
                             <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
-                            Kuatkan dengan huruf besar, angka, dan simbol.
+                            Tambahkan huruf besar, angka, dan simbol.
                           </>
-                        ) : score < 5 ? (
-                          <>Lumayan. Tambahkan variasi untuk lebih kuat.</>
+                        ) : passwordScore < 5 ? (
+                          'Lumayan. Tambahkan variasi untuk lebih kuat.'
                         ) : (
-                          <>Mantap. Password kuat.</>
+                          'Password kuat.'
                         )}
-                      </div>
+                      </p>
                     </div>
                   </div>
 
+                  {/* Confirm Password */}
                   <div className="relative">
                     <Label htmlFor="confirmPassword">Konfirmasi Password Baru</Label>
                     <Input
@@ -462,15 +607,20 @@ function EditProfilePage() {
                     />
                     <button
                       type="button"
-                      onClick={() => setShow((s) => ({ ...s, confirm: !s.confirm }))}
+                      onClick={() => setShow(s => ({ ...s, confirm: !s.confirm }))}
                       className="absolute right-3 top-[38px] text-gray-500"
-                      aria-label={show.confirm ? 'Sembunyikan password' : 'Tampilkan password'}
                     >
-                      {show.confirm ? <EyeOff size={20} /> : <Eye size={20} />}
+                      {show.confirm ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
+                    {passwordData.confirmPassword && passwordData.confirmPassword !== passwordData.newPassword && (
+                      <p className="text-xs text-rose-500 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Password tidak cocok.
+                      </p>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 pt-1">
                     <Button
                       type="submit"
                       className="bg-[#000476] hover:bg-indigo-900 text-white"
@@ -479,7 +629,7 @@ function EditProfilePage() {
                       {changingPw ? 'Memproses…' : 'Ubah Password'}
                     </Button>
                     <p className="text-xs text-gray-500">
-                      Minimal 8 karakter: huruf besar, kecil, angka, simbol.
+                      Min. 8 karakter: huruf besar, huruf kecil, angka, simbol.
                     </p>
                   </div>
                 </form>

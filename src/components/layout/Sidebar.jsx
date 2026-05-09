@@ -1,10 +1,50 @@
+/**
+ * components/Sidebar.jsx
+ *
+ * Komponen sidebar navigasi aplikasi yang responsif untuk desktop dan mobile.
+ * Menampilkan menu navigasi berdasarkan role user, dengan animasi active state.
+ * Mendukung toggle untuk mobile (drawer).
+ *
+ * ============================================================
+ * PROPS
+ * ============================================================
+ * @param {boolean} isMobileOpen - Status buka/tutup sidebar di mobile (controlled)
+ * @param {function} onToggleMobile - Callback untuk toggle sidebar mobile
+ *
+ * ============================================================
+ * STRUKTUR NAVIGASI BERDASARKAN ROLE
+ * ============================================================
+ * ADMIN       : Dashboard, Daftar Layanan, Marketing Kit, Admin Panel
+ * MANAJEMEN   : Dashboard, Daftar Layanan, Marketing Kit
+ * PDO         : Dashboard, Daftar Layanan, Marketing Kit
+ * VIEWER      : Dashboard, Daftar Layanan
+ *
+ * ============================================================
+ * PANDUAN MAINTENANCE
+ * ============================================================
+ * - Ubah `navConfig` jika ada perubahan role atau menu baru.
+ * - Semua menu diambil dari `allNavigation`; filter berdasarkan role.
+ * - Sidebar memiliki dua mode: desktop (fixed, visible) dan mobile (drawer).
+ * - Menggunakan Framer Motion untuk animasi background active item.
+ * - User card footer dapat diaktifkan/dinonaktifkan sesuai kebutuhan.
+ */
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LayoutDashboard, Briefcase, FolderDown, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth, ROLES } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { ROLES } from '@/constants/roles';
 
+// ============================================================
+// Konfigurasi Navigasi Berdasarkan Role
+// ============================================================
+
+/**
+ * Mapping role ke daftar nama menu yang dapat diakses.
+ * Nama menu harus sesuai dengan `name` di `allNavigation`.
+ */
 const navConfig = {
   [ROLES.ADMIN]: ['Dashboard', 'Daftar Layanan', 'Marketing Kit', 'Admin Panel'],
   [ROLES.MANAJEMEN]: ['Dashboard', 'Daftar Layanan', 'Marketing Kit'],
@@ -12,6 +52,13 @@ const navConfig = {
   [ROLES.VIEWER]: ['Dashboard', 'Daftar Layanan'],
 };
 
+/**
+ * Daftar semua item navigasi yang tersedia di aplikasi.
+ * Setiap item memiliki:
+ * - name: nama tampilan (harus match dengan navConfig)
+ * - href: path URL
+ * - icon: komponen ikon dari lucide-react
+ */
 const allNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Daftar Layanan', href: '/daftar-jasa', icon: Briefcase },
@@ -19,12 +66,24 @@ const allNavigation = [
   { name: 'Admin Panel', href: '/admin', icon: ShieldCheck },
 ];
 
+// ============================================================
+// Subkomponen: UserMiniCard (untuk footer sidebar)
+// ============================================================
+
+/**
+ * Menampilkan kartu kecil informasi user di footer sidebar.
+ * @param {Object} props
+ * @param {Object} props.user - Data user dari AuthContext
+ * @returns {JSX.Element|null}
+ */
 function UserMiniCard({ user }) {
   if (!user) return null;
+
+  // Ambil inisial dari nama (max 2 huruf)
   const initials = (user.full_name || '')
     .split(/\s+/)
     .slice(0, 2)
-    .map(s => s[0]?.toUpperCase() || '')
+    .map((s) => s[0]?.toUpperCase() || '')
     .join('');
 
   const roleLabel = user.role || 'user';
@@ -49,21 +108,42 @@ function UserMiniCard({ user }) {
   );
 }
 
+// ============================================================
+// Komponen Utama: Sidebar
+// ============================================================
+
+/**
+ * Sidebar navigasi yang responsif.
+ * @param {Object} props
+ * @param {boolean} props.isMobileOpen - Status sidebar mobile (open/closed)
+ * @param {function} props.onToggleMobile - Fungsi toggle untuk mobile drawer
+ * @returns {JSX.Element}
+ */
 function Sidebar({ isMobileOpen, onToggleMobile }) {
   const location = useLocation();
   const { user } = useAuth();
 
-  const userNav = user?.role && navConfig[user.role] ? navConfig[user.role] : [];
-  const visibleNavigation = allNavigation.filter(item => userNav.includes(item.name));
+  // Filter menu berdasarkan role user
+  const accessibleMenus = user?.role && navConfig[user.role] ? navConfig[user.role] : [];
+  const visibleNavigation = allNavigation.filter((item) =>
+    accessibleMenus.includes(item.name)
+  );
 
+  // ============================================================
+  // Komponen Item Navigasi (dengan animasi active)
+  // ============================================================
   const NavItem = ({ item }) => {
-    const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+    // Deteksi apakah item sedang aktif (exact match atau starts with)
+    const isActive =
+      location.pathname === item.href || location.pathname.startsWith(item.href + '/');
 
     return (
       <Link
         key={item.name}
         to={item.href}
-        onClick={() => { if (onToggleMobile) onToggleMobile(); }}
+        onClick={() => {
+          if (onToggleMobile) onToggleMobile();
+        }}
         className={cn(
           'group relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
           isActive
@@ -71,18 +151,20 @@ function Sidebar({ isMobileOpen, onToggleMobile }) {
             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
         )}
       >
-        {/* Active rail */}
+        {/* Active rail (garis vertikal di kiri) */}
         <span
           className={cn(
             'absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-gradient-to-b from-indigo-500 to-sky-400 transition-opacity',
             isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'
           )}
         />
-        {/* Icon */}
+        {/* Icon container */}
         <div
           className={cn(
             'relative z-10 grid place-items-center size-8 rounded-lg ring-1 ring-gray-100',
-            isActive ? 'bg-indigo-50 text-[#000476]' : 'bg-white text-gray-400 group-hover:text-gray-700'
+            isActive
+              ? 'bg-indigo-50 text-[#000476]'
+              : 'bg-white text-gray-400 group-hover:text-gray-700'
           )}
         >
           <item.icon className="w-4.5 h-4.5" />
@@ -90,7 +172,7 @@ function Sidebar({ isMobileOpen, onToggleMobile }) {
         {/* Label */}
         <span className="relative z-10">{item.name}</span>
 
-        {/* Floating active bg */}
+        {/* Floating background untuk active item (Framer Motion) */}
         {isActive && (
           <motion.div
             layoutId="sidebar-active-blob"
@@ -102,39 +184,45 @@ function Sidebar({ isMobileOpen, onToggleMobile }) {
     );
   };
 
+  // ============================================================
+  // Konten Sidebar (dipakai untuk desktop dan mobile)
+  // ============================================================
   const sidebarContent = (
     <div className="w-64 h-full flex flex-col bg-white border-r border-gray-200">
-      {/* Top brand */}
+      {/* Brand / Logo */}
       <div className="border-b border-gray-200">
         <Link to="/dashboard" className="flex items-center justify-center h-20">
           <img
-            src="sakti.png"
+            src="../../sakti.png"
             alt="SAKTI Logo"
-            className="h-12 object-contain"
+            className="h-15 object-contain"
           />
         </Link>
       </div>
 
-      {/* Nav */}
+      {/* Navigasi menu */}
       <nav className="flex-1 p-3 overflow-y-auto bg-gradient-to-b from-white to-gray-50/60">
         <div className="space-y-1">
-          {visibleNavigation.map((item) => <NavItem key={item.name} item={item} />)}
+          {visibleNavigation.map((item) => (
+            <NavItem key={item.name} item={item} />
+          ))}
         </div>
       </nav>
 
-      {/* Footer user card */}
+      {/* Footer: versi aplikasi (UserMiniCard dikomentari karena tidak digunakan) */}
       <div className="border-t border-gray-200 bg-white">
-        <UserMiniCard user={user} />
-        <div className="px-4 pb-3 text-[10px] text-gray-400">
-          v1.0 • © SAKTI
-        </div>
+        {/* <UserMiniCard user={user} /> */}
+        <div className="px-4 pb-3 text-[10px] text-gray-400">v1.0 • © SAKTI</div>
       </div>
     </div>
   );
 
+  // ============================================================
+  // Render: Mobile Overlay + Drawer + Desktop Sidebar
+  // ============================================================
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* Mobile overlay (transparan hitam, klik untuk tutup) */}
       <div
         className={cn(
           'lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity',
@@ -143,18 +231,17 @@ function Sidebar({ isMobileOpen, onToggleMobile }) {
         onClick={onToggleMobile}
       />
 
-      {/* Mobile Sidebar */}
+      {/* Mobile drawer (bergeser dari kiri) */}
       <div
         className={cn(
           'lg:hidden fixed top-0 left-0 h-full w-64 z-50 transform transition-transform duration-300',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        {/* Shadow container for depth */}
         <div className="h-full shadow-2xl">{sidebarContent}</div>
       </div>
 
-      {/* Desktop Sidebar */}
+      {/* Desktop sidebar (selalu tampil di kiri) */}
       <div className="hidden lg:flex lg:flex-col lg:w-64 lg:h-full lg:fixed">
         <div className="h-full shadow-sm">{sidebarContent}</div>
       </div>
