@@ -256,7 +256,7 @@ function Dashboard() {
           <div className="absolute top-3 left-3 hidden sm:block">
             <div className="bg-white/95 p-3 sm:p-4 rounded-2xl shadow-lg">
               <img
-                src="simbol.png"
+                src="/simbol.png"
                 alt="SAKTI Symbol Logo"
                 className="h-8 w-8 sm:h-12 sm:w-12"
               />
