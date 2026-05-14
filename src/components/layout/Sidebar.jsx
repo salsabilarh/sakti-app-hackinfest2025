@@ -193,7 +193,7 @@ function Sidebar({ isMobileOpen, onToggleMobile }) {
       <div className="border-b border-gray-200">
         <Link to="/dashboard" className="flex items-center justify-center h-20">
           <img
-            src="../../sakti.png"
+            src="/sakti.png"
             alt="SAKTI Logo"
             className="h-15 object-contain"
           />

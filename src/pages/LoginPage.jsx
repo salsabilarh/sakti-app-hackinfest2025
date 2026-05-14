@@ -179,7 +179,7 @@ function LoginPage() {
             {/* Header: Logo + Teks Selamat Datang */}
             <div className="text-center mb-6">
               <img
-                src="sakti.png"
+                src="/sakti.png"
                 alt="SAKTI Logo"
                 className="h-32 mx-auto mb-3 object-contain"
               />
