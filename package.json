@@ -61,5 +61,5 @@
     "terser": "^5.39.0",
     "vite": "^4.4.5"
   },
-  "proxy": "http://localhost:3000"
+  "proxy": "https://saktiapi-hackinfest2025-production.up.railway.app"
 }

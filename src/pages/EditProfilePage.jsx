@@ -481,8 +481,7 @@ function EditProfilePage() {
                     <Input
                       id="name"
                       value={formData.full_name}
-                      onChange={(e) => setFormData({ full_name: e.target.value })}
-                      placeholder="Nama lengkap Anda"
+                      disabled className="bg-gray-50" 
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -498,19 +497,6 @@ function EditProfilePage() {
                   <div>
                     <Label htmlFor="unit_kerja">Unit Kerja</Label>
                     <Input id="unit_kerja" value={user?.unit?.name || '-'} disabled className="bg-gray-50" />
-                  </div>
-                  <div className="flex items-center gap-2 pt-2">
-                    <Button
-                      type="submit"
-                      className="bg-[#000476] hover:bg-indigo-900 text-white"
-                      disabled={savingInfo}
-                    >
-                      {savingInfo ? 'Menyimpan…' : 'Simpan Perubahan'}
-                    </Button>
-                    <span className="text-xs text-gray-500">
-                      <CheckCircle2 className="inline w-3.5 h-3.5 mr-1 text-emerald-600" />
-                      Perubahan nama tersimpan ke profil.
-                    </span>
                   </div>
                 </form>
               </CardContent>
