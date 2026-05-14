@@ -57,11 +57,19 @@ export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
  */
 export const TOKEN_KEYS = {
   /** JWT access token (expire 1 jam) */
-  ACCESS: 'sakti_token',
+  ACCESS: 'access_token',
   /** Refresh token (expire 7 hari) */
-  REFRESH: 'sakti_refresh_token',
+  REFRESH: 'refresh_token',
   /** Cached user object (opsional) */
-  USER: 'sakti_user',
+  USER: 'user',
+};
+
+export const API_ENDPOINTS = {
+  LOGIN: '/auth/login',
+  LOGOUT: '/auth/logout',
+  REFRESH: '/auth/refresh',
+  UNITS: '/units',
+  PORTFOLIOS: '/portfolios',
 };
 
 // ============================================================
